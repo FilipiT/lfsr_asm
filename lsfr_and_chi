@@ -1,0 +1,88 @@
+#include <stdint.h>
+#include <math.h>
+#include <stdio.h>
+#define  NC 4096
+
+//vetor de classes
+int classes[NC];
+double chiQuadrado[NC];
+double distChi = 0;
+
+//declarações de funções
+void inicializaClasses();
+void inicializaChiQuadrado();
+void calculoFrequencia();
+void separaClasses(uint32_t);
+void lfsr();
+
+//corpo das funções
+void inicializaClasses(){
+  for (int i = 0;  i < NC; i++) {
+    classes[i] = 0;
+  }
+}
+
+void inicializaChiQuadrado() {
+  for (int i = 0;  i < NC; i++) {
+    chiQuadrado[i] = 0;
+  }
+ }
+
+void separaClasses(uint32_t a) {
+  uint32_t aux = (a/NC);
+  classes[aux]++;
+}
+
+void calculoFrequencia(){
+  double aux =0;
+
+  for (int i = 0;  i < NC; i++) {
+    aux = (pow((classes[i]-NC),2))/NC;
+    chiQuadrado[i] = aux;
+
+    distChi += chiQuadrado[i];
+  }
+}
+/*
+função que gera os números pseudo aleatórios adaptada de:
+https://en.wikipedia.org/wiki/Linear-feedback_shift_register
+*/
+void lfsr(){
+  uint32_t start_state = 0xFF01;  /* Any nonzero start state will work. */
+  uint32_t lfsr = start_state;
+  uint32_t bit;                    /* Must be 32bit to allow bit<<23 later in the code */
+  unsigned period = 0;
+
+  unsigned long int contador = 0;
+
+  do
+  {
+      /* taps: 24 23 22 17; feedback polynomial: x^24 + x^23 + x^22 + x^17 + 1 */
+      bit  = ((lfsr >> 8) ^ (lfsr >> 9) ^ (lfsr >> 10) ^ (lfsr >> 15)) & 1;
+      lfsr =  (lfsr >> 1) | (bit << 23);
+      ++period;
+      contador++;
+      lfsr = lfsr & 0x00FFFFFF;
+      separaClasses(lfsr);
+  } while (/*lfsr != start_state && */contador != 16777215);
+
+  printf("\n\n\t gerou %lu números\n",contador);
+
+
+
+}
+
+int main(void){
+  inicializaChiQuadrado();
+  inicializaClasses();
+  lfsr();
+  calculoFrequencia();
+  for (int i = 0; i < NC; i++) {
+    printf("classe %d tem %d elementos e o valor chi da classe %d é %lf\n",i,classes[i],i,chiQuadrado[i]);
+  }
+
+  printf("\tvalor chi quadrado é %lf\n", distChi);
+
+  getchar();
+  return 0;
+}
