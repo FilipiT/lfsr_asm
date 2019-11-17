@@ -1,0 +1,93 @@
+#include <stdint.h>
+#include <math.h>
+#include <stdio.h>
+#define  NC 16  /*Numero de classes */
+#define FreqEsperada 1000000 /* Frequencia Esperada*/
+
+//vetor de classes
+int classes[NC];
+double chiQuadrado[NC];
+double distChi = 0;
+
+//FUnções que serão utilizadas
+void inicializaClasses();
+void inicializaChiQuadrado();
+void calculoFrequencia();
+void separaClasses(uint32_t);
+void lfsr();
+
+
+void inicializaClasses(){  //Função para inicializar as 16 Classes
+  for (int i = 0;  i < NC; i++) {
+    classes[i] = 0;
+  }
+}
+
+void inicializaChiQuadrado() {  //FUnção que inicializa os valores Chi das 16 Classes
+  for (int i = 0;  i < NC; i++) {
+    chiQuadrado[i] = 0;
+  }
+ }
+
+void separaClasses(uint32_t a) {  //Função utilizada para separar os 16M nuúmeros em 16 classes
+  uint32_t aux = (a/FreqEsperada);
+  classes[aux]++;
+}
+
+void calculoFrequencia(){   //Função para calcular o Chi Quadrado
+  double aux =0;
+
+  for (int i = 0;  i < NC; i++) {
+    aux = (pow((classes[i]-FreqEsperada),2))/FreqEsperada;
+    chiQuadrado[i] = aux;
+
+    distChi += chiQuadrado[i];
+  }
+}
+/*
+função que gera os números pseudo aleatórios adaptada de:
+https://en.wikipedia.org/wiki/Linear-feedback_shift_register
+*/
+void lfsr(){
+  uint32_t SEED = 0xFAEB;  /* SEED, qualquer número diferente de  0 */
+  uint32_t ShiftRegister = SEED;
+  uint32_t bit;                    /* Deve ser 32 bits para permitir <<23 */
+  unsigned long int contador = 0;
+
+  do
+  {
+      /* taps: 24 23 22 17; feedback polynomial: x^24 + x^23 + x^22 + x^17 + 1, Polinômio Primitivo, período de 2^24 - 1 */
+      bit  = (((ShiftRegister >> 8)
+            ^ (ShiftRegister >> 9)
+            ^ (ShiftRegister >> 10)
+            ^ (ShiftRegister >> 15))
+            & 0x00000001);
+      ShiftRegister =  (ShiftRegister >> 1) | (bit << 23);
+      contador++;
+      ShiftRegister = ShiftRegister & 0x00FFFFFF; //Máscara para garantir que o número seja de 24 bits
+      separaClasses(ShiftRegister);
+      if (ShiftRegister == SEED){
+          printf("Numero se repetiu apos : %lu", contador);
+        }
+  } while (/*lfsr != start_state && */contador != 16777215); //Gera números pseudo aleatórios 16M de vezes
+
+  printf("\n\n Foram gerados %lu números\n",contador);
+
+
+
+}
+
+  int main(void){
+  inicializaChiQuadrado();
+  inicializaClasses();
+  lfsr();
+  calculoFrequencia();
+  for (int i = 0; i < NC; i++) {
+    printf("A classe numero %d tem %d elementos e o chi quadrado da classe %d é %lf\n",i,classes[i],i,chiQuadrado[i]);
+  }
+
+  printf("O valor total do Chi Quadrado é %lf\n", distChi);
+
+  getchar();
+  return 0;
+}
